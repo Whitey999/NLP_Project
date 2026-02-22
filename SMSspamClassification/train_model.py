@@ -1,0 +1,131 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "9880c8ef-a5d8-4ddc-bc7e-2e48c760321c",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Loading dataset...\n",
+      "Preprocessing...\n",
+      "Vectorizing...\n",
+      "Training model...\n",
+      "Saving model...\n",
+      "✅ Model training complete! Files saved:\n",
+      "- spam_classifier_lr.pkl\n",
+      "- tfidf_vectorizer.pkl\n",
+      "- feature_columns.pkl\n"
+     ]
+    }
+   ],
+   "source": [
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "import re\n",
+    "import joblib\n",
+    "from sklearn.model_selection import train_test_split\n",
+    "from sklearn.feature_extraction.text import TfidfVectorizer\n",
+    "from sklearn.linear_model import LogisticRegression\n",
+    "from scipy.sparse import hstack\n",
+    "\n",
+    "print(\"Loading dataset...\")\n",
+    "df = pd.read_csv('spam.csv', encoding='latin-1')\n",
+    "df = df.iloc[:, :2]\n",
+    "df.columns = ['label', 'message']\n",
+    "\n",
+    "print(\"Preprocessing...\")\n",
+    "def clean_text(text):\n",
+    "    text = str(text).lower()\n",
+    "    text = re.sub(r'[^a-zA-Z0-9\\s]', '', text)\n",
+    "    text = re.sub(r'\\d+', '', text)\n",
+    "    text = re.sub(r'\\s+', ' ', text).strip()\n",
+    "    return text\n",
+    "\n",
+    "def extract_features(message):\n",
+    "    message = str(message)\n",
+    "    features = {\n",
+    "        'contains_urgent': 1 if re.search(r'urgent|urg|asap', message, re.I) else 0,\n",
+    "        'contains_winner': 1 if re.search(r'won|winner|win|claim|prize|cash', message, re.I) else 0,\n",
+    "        'contains_free': 1 if re.search(r'free|complimentary', message, re.I) else 0,\n",
+    "        'contains_call': 1 if re.search(r'call|text|reply', message, re.I) else 0,\n",
+    "        'contains_money': 1 if re.search(r'\\$|£|€|pound|dollar', message, re.I) else 0,\n",
+    "        'contains_number': 1 if re.search(r'\\d', message) else 0,\n",
+    "        'exclamation_count': message.count('!'),\n",
+    "        'question_count': message.count('?'),\n",
+    "        'capital_ratio': sum(1 for c in message if c.isupper()) / (len(message) + 1)\n",
+    "    }\n",
+    "    return features\n",
+    "\n",
+    "# Clean messages\n",
+    "df['clean'] = df['message'].apply(clean_text)\n",
+    "\n",
+    "# Extract features\n",
+    "feature_list = []\n",
+    "for msg in df['message']:\n",
+    "    feature_list.append(extract_features(msg))\n",
+    "    \n",
+    "feature_df = pd.DataFrame(feature_list)\n",
+    "feature_cols = feature_df.columns.tolist()\n",
+    "\n",
+    "# Vectorize text\n",
+    "print(\"Vectorizing...\")\n",
+    "vectorizer = TfidfVectorizer(max_features=3000)\n",
+    "X_text = vectorizer.fit_transform(df['clean']).toarray()\n",
+    "X_features = feature_df.values\n",
+    "X = np.hstack([X_text, X_features])\n",
+    "\n",
+    "# Labels\n",
+    "y = (df['label'] == 'spam').astype(int)\n",
+    "\n",
+    "# Train model\n",
+    "print(\"Training model...\")\n",
+    "model = LogisticRegression(max_iter=1000)\n",
+    "model.fit(X, y)\n",
+    "\n",
+    "# Save model\n",
+    "print(\"Saving model...\")\n",
+    "joblib.dump(model, 'spam_classifier_lr.pkl')\n",
+    "joblib.dump(vectorizer, 'tfidf_vectorizer.pkl')\n",
+    "joblib.dump(feature_cols, 'feature_columns.pkl')\n",
+    "\n",
+    "print(\"✅ Model training complete! Files saved:\")\n",
+    "print(\"- spam_classifier_lr.pkl\")\n",
+    "print(\"- tfidf_vectorizer.pkl\")\n",
+    "print(\"- feature_columns.pkl\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "3155bacc-6ced-4a0f-9725-51f8a85797a3",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.12.3"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
